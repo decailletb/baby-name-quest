@@ -43,12 +43,15 @@ communs, synchronisés entre deux appareils via un simple code de couple.
 | 13 | PR finale ouverte ; Pages activé (site en ligne) ; secrets Actions Supabase à créer | [~] secrets en attente | — |
 | 14 | Découvrir : ordre alphabétique ; signification des prénoms (table `data/meanings.json`, carte et détails) | [x] fait | — |
 | 15 | Liste : croix « Passer » à côté du cœur sur chaque ligne | [x] fait | — |
+| 16 | Découvrir : une carte par famille d'orthographes (clé phonétique), autres orthographes consultables et aimables | [x] fait | — |
+| 17 | Découvrir : filtres première lettre + popularité (les « rares » masqués par défaut), mémorisés | [x] fait | — |
 
 ## PROCHAINE ACTION
-Après fusion de la PR « ci(pages): deploy only from main », vérifier que le bundle en ligne
-embarque l'URL Supabase (le hash de `assets/index-*.js` change), que « Mon profil » affiche
-« synchronisés entre vos appareils », puis tester avec deux navigateurs et le même code de couple.
-Consigner le résultat ici.
+Une fois la PR de la branche de travail courante fusionnée dans `main`, vérifier que le
+run CI sur `main` passe `check:repo` (le run 24 échouait sur un mot interdit dans ce fichier, d'où
+l'absence en ligne du tri alphabétique) et que le site déployé montre les puces « Alphabétique » et
+« Filtres » sur Découvrir. Puis tester la synchronisation avec deux navigateurs et le même code de
+couple, et consigner le résultat ici.
 
 ## BLOQUÉ / EN ATTENTE DE BENJAMIN
 - Fusionner la PR de la branche de travail : le déploiement Pages n'est autorisé que depuis `main`
@@ -56,14 +59,24 @@ Consigner le résultat ici.
   fusion précédente) ne seront intégrés qu'au prochain build sur `main`.
 
 ## Journal
+- 2026-09-13 — Cause de l'absence du tri alphabétique en ligne : le run CI 24 sur `main` échouait à
+  `check:repo` (mot interdit dans PROGRESS.md), donc pas de déploiement Pages ; note reformulée.
+  Découvrir : regroupement des orthographes (`src/data/variants.ts`, clé phonétique française : accents,
+  lettres doublées, ph/ch/qu, h muet, voyelles intérieures en classes larges ; genre et parties des
+  prénoms composés distincts) → 22 870 prénoms deviennent 12 255 familles, la carte affiche la plus
+  populaire et « Aussi écrit … » ouvre un panneau où chaque orthographe se met en favori. Filtres de
+  découverte (première lettre, popularité) dans un panneau, mémorisés (`bnq.swipe.filters`) ; par défaut
+  les « Rares » (au-delà du rang 2 000) sont masqués → 1 471 cartes au lieu de 22 870. Raccourcis clavier
+  suspendus quand un panneau est ouvert. Vérifié dans Chromium (viewport iPhone, aucune erreur console) ;
+  `npm run verify` vert (109 tests).
 - 2026-09-05 — Découvrir : puce « Alphabétique » (tri français insensible aux accents, mémorisé comme les
   autres ordres). Signification des prénoms : table curatée `data/meanings.json` (1 199 prénoms, mêmes clés
   que les origines), champ `meaning` généré par `build:names` (dataset régénéré à l'identique, 3,94 Mo),
   affichée sous le prénom sur la carte et dans les détails de la liste. Vérifié dans Chromium (viewport
   iPhone, aucune erreur console) ; `npm run verify` vert (86 tests).
 - 2026-09-05 — Liste : croix « Passer <prénom> » à côté du cœur (rouge quand le prénom est passé, un second
-  appui le reprend). `check:repo` exempte désormais toutes les tables `data/*.json`, dont les significations
-  qui citent le prénom Claude. `npm run verify` vert (87 tests).
+  appui le reprend). `check:repo` exempte désormais toutes les tables `data/*.json`, dont les significations,
+  car certaines valeurs reprennent un mot que le contrôle de vocabulaire refuse. `npm run verify` vert (87 tests).
 - 2026-09-04 — Démarrage. Repo vide. Socle en cours (hygiène, hooks, commandes, skills, scaffold).
   Sous-agent lancé sur le pipeline de données.
 - 2026-09-04 — Livré : socle, hooks, scaffold, dataset INSEE+OFS (22 870 prénoms), couche données,

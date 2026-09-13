@@ -48,6 +48,13 @@ const NAMES: NameEntry[] = [
   entry('camille', 'Camille', 'x', 3),
 ];
 
+/** The fixtures above plus a spelling of « Emma » and a rare name, both hidden from the queue. */
+const NAMES_WITH_EXTRAS: NameEntry[] = [
+  ...NAMES,
+  entry('ema', 'Ema', 'f', 503),
+  entry('zoe', 'Zoé', 'f', 2500),
+];
+
 const namesState = { names: NAMES, loading: false, error: null as string | null };
 
 vi.mock('../../data/useNames', () => ({
@@ -303,5 +310,78 @@ describe('SwipePage', () => {
       renderPage(adapter);
     });
     expect(await screen.findByText('Impossible de charger les prénoms')).toBeInTheDocument();
+  });
+
+  it('shows one card per family of spellings and lets me like another spelling', async () => {
+    const user = userEvent.setup();
+    namesState.names = NAMES_WITH_EXTRAS;
+    const adapter = await seedAdapter();
+    renderPage(adapter);
+    await screen.findByRole('heading', { name: 'Emma' });
+    expect(screen.getByText('0 / 3 prénoms vus')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Aussi écrit Ema/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Autres orthographes de Emma' });
+    expect(dialog).toHaveTextContent('Ema');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(screen.getByRole('heading', { name: 'Emma' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Aimer Ema' }));
+    expect(
+      await screen.findByRole('button', { name: 'Retirer Ema de mes favoris' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(async () => {
+      expect(await myVotes(adapter)).toEqual([
+        expect.objectContaining({ nameId: 'ema', value: 'like' }),
+      ]);
+    });
+    expect(screen.getByRole('heading', { name: 'Emma' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Fermer les orthographes' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: "J'aime" }));
+    expect(await screen.findByRole('heading', { name: 'Louis' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Aussi écrit/ })).not.toBeInTheDocument();
+  });
+
+  it('hides the rare names by default and offers filters that survive a reload', async () => {
+    const user = userEvent.setup();
+    namesState.names = NAMES_WITH_EXTRAS;
+    const adapter = await seedAdapter();
+    const first = renderPage(adapter);
+    await screen.findByRole('heading', { name: 'Emma' });
+    expect(screen.getByRole('button', { name: /Filtres · 1/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Filtres · 1/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Filtres de découverte' });
+    expect(dialog).toHaveTextContent('Voir 3 prénoms');
+    await user.click(screen.getByRole('button', { name: /Rares/ }));
+    expect(dialog).toHaveTextContent('Voir 4 prénoms');
+    await user.click(screen.getByRole('button', { name: 'Lettre Z' }));
+    expect(dialog).toHaveTextContent('Voir 1 prénom');
+    await user.click(screen.getByRole('button', { name: 'Voir 1 prénom' }));
+
+    expect(await screen.findByRole('heading', { name: 'Zoé' })).toBeInTheDocument();
+    expect(screen.getByText('0 / 1 prénoms vus')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Filtres · 1/ })).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem('bnq.swipe.filters') ?? '{}')).toEqual({
+      letters: ['Z'],
+      popularity: ['classic', 'common', 'original', 'rare'],
+    });
+    first.unmount();
+
+    renderPage(adapter);
+    expect(await screen.findByRole('heading', { name: 'Zoé' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Je passe' }));
+    expect(
+      await screen.findByText(
+        'Il ne reste plus aucun prénom à découvrir avec ces filtres. Élargissez-les, ou passez en revue votre liste ou vos matchs.',
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Modifier les filtres' }));
+    await user.click(await screen.findByRole('button', { name: 'Tout afficher' }));
+    await user.click(screen.getByRole('button', { name: 'Voir 3 prénoms' }));
+    expect(await screen.findByRole('heading', { name: 'Emma' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Filtres' })).toBeInTheDocument();
   });
 });
