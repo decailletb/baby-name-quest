@@ -5,12 +5,22 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { useNames } from '../../data/useNames';
 import type { NameEntry } from '../../data/types';
+import { groupVariants, otherSpellings } from '../../data/variants';
 import type { VoteValue } from '../../storage';
 import { useSession } from '../../store/SessionContext';
 import { useVotes } from '../../store/useVotes';
 import { EXIT_DURATION, GhostCard, SwipeCard } from './SwipeCard';
 import { SwipeActions } from './SwipeActions';
+import { SwipeFilterSheet } from './SwipeFilterSheet';
 import { SwipeProgress } from './SwipeProgress';
+import { SpellingsSheet } from './SpellingsSheet';
+import {
+  applySwipeFilters,
+  countSwipeFilters,
+  readSwipeFilters,
+  writeSwipeFilters,
+  type SwipeFilters,
+} from './swipeFilters';
 import {
   ORDER_LABELS,
   QUEUE_ORDERS,
@@ -29,9 +39,12 @@ import { usePrefersReducedMotion, type SwipeDirection } from './useSwipeGesture'
 interface Ghost {
   key: number;
   entry: NameEntry;
+  spellings: NameEntry[];
   direction: SwipeDirection;
   fromDx: number;
 }
+
+type Sheet = 'filters' | 'spellings' | null;
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -49,18 +62,34 @@ export function SwipePage() {
   const [seed, setSeed] = useState<string>(() =>
     readOrder() === 'shuffle' ? readShuffleSeed() : '',
   );
+  const [filters, setFilters] = useState<SwipeFilters>(() => readSwipeFilters());
+  const [sheet, setSheet] = useState<Sheet>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
 
+  useEffect(() => {
+    writeSwipeFilters(filters);
+  }, [filters]);
+
   const preference = profile?.genderPreference ?? 'both';
-  const pool = useMemo(() => buildPool(names, preference), [names, preference]);
+  // One card per family of spellings: the most popular spelling stands for the others.
+  const groups = useMemo(() => groupVariants(names), [names]);
+  const pool = useMemo(
+    () => applySwipeFilters(buildPool(groups.canonical, preference), filters),
+    [groups, preference, filters],
+  );
   const orderedPool = useMemo(() => orderPool(pool, order, seed), [pool, order, seed]);
   const queue = useMemo(() => buildQueue(orderedPool, mine), [orderedPool, mine]);
   const progress = useMemo(() => computeProgress(pool, mine), [pool, mine]);
   const current = useMemo(() => pickCurrent(queue, pinnedId), [queue, pinnedId]);
+  const spellings = useMemo(
+    () => (current ? otherSpellings(groups, current.id) : []),
+    [groups, current],
+  );
+  const activeFilterCount = countSwipeFilters(filters);
 
   const likedByPartner =
     current && partner && theirs.get(current.id)?.value === 'like' ? partner.displayName : null;
@@ -72,6 +101,13 @@ export function SwipePage() {
     writeOrder(next);
     setPinnedId(null);
   };
+
+  const changeFilters = (next: SwipeFilters) => {
+    setFilters(next);
+    setPinnedId(null);
+  };
+
+  const closeSheet = useCallback(() => setSheet(null), []);
 
   const decide = useCallback(
     (value: VoteValue, fromDx = 0) => {
@@ -86,12 +122,13 @@ export function SwipePage() {
         setGhost({
           key: Date.now(),
           entry: current,
+          spellings,
           direction: value === 'like' ? 'right' : 'left',
           fromDx,
         });
       }
     },
-    [current, note, reducedMotion, vote],
+    [current, note, reducedMotion, spellings, vote],
   );
 
   const undo = useCallback(() => {
@@ -103,6 +140,9 @@ export function SwipePage() {
     setGhost(null);
   }, [history, removeVote]);
 
+  const likeSpelling = useCallback((id: string) => void vote(id, 'like', null), [vote]);
+  const unlikeSpelling = useCallback((id: string) => void removeVote(id), [removeVote]);
+
   // Remove the flying ghost once its animation is over.
   useEffect(() => {
     if (!ghost) return;
@@ -112,8 +152,9 @@ export function SwipePage() {
     return () => window.clearTimeout(timer);
   }, [ghost]);
 
-  // Keyboard shortcuts: ← passer, → aimer, retour arrière / ↓ / z annuler.
+  // Keyboard shortcuts: ← passer, → aimer, retour arrière / ↓ / z annuler. Paused while a sheet is open.
   useEffect(() => {
+    if (sheet) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(event.target)) return;
@@ -139,7 +180,7 @@ export function SwipePage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [decide, undo]);
+  }, [decide, sheet, undo]);
 
   if (loading) return <Spinner label="Chargement des prénoms…" />;
   if (error) {
@@ -151,6 +192,20 @@ export function SwipePage() {
       />
     );
   }
+
+  const filtersButton = (
+    <Chip
+      selected={activeFilterCount > 0}
+      aria-pressed={undefined}
+      aria-haspopup="dialog"
+      aria-expanded={sheet === 'filters'}
+      onClick={() => setSheet('filters')}
+      className="min-h-9 px-3 text-xs"
+    >
+      <span aria-hidden="true">⚙️ </span>
+      Filtres{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+    </Chip>
+  );
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-2 px-4 pt-2 pb-28">
@@ -167,6 +222,7 @@ export function SwipePage() {
               {ORDER_LABELS[option]}
             </Chip>
           ))}
+          {filtersButton}
         </div>
         <p className="hidden text-xs text-stone-400 sm:block" aria-hidden="true">
           ← passer · → aimer · ↓ annuler
@@ -210,6 +266,8 @@ export function SwipePage() {
               key={current.id}
               entry={current}
               likedByPartner={likedByPartner}
+              spellings={spellings}
+              onShowSpellings={spellings.length > 0 ? () => setSheet('spellings') : undefined}
               reducedMotion={reducedMotion}
               onDecide={decide}
             />
@@ -217,6 +275,7 @@ export function SwipePage() {
               <GhostCard
                 key={ghost.key}
                 entry={ghost.entry}
+                spellings={ghost.spellings}
                 direction={ghost.direction}
                 fromDx={ghost.fromDx}
               />
@@ -231,20 +290,47 @@ export function SwipePage() {
               canUndo={history.length > 0}
             />
           </div>
+
+          <SpellingsSheet
+            open={sheet === 'spellings'}
+            entry={current}
+            spellings={spellings}
+            mine={mine}
+            theirs={theirs}
+            partnerName={partner?.displayName ?? null}
+            onLike={likeSpelling}
+            onUnlike={unlikeSpelling}
+            onClose={closeSheet}
+          />
         </>
       ) : (
         <div className="flex flex-1 flex-col justify-center">
           <EmptyState
             icon="🎉"
-            title="Vous avez tout vu !"
+            title={
+              pool.length === 0 && activeFilterCount > 0 ? 'Aucun prénom' : 'Vous avez tout vu !'
+            }
             description={
               pool.length === 0
-                ? 'Aucun prénom ne correspond à votre préférence pour le moment.'
-                : 'Il ne reste plus aucun prénom à découvrir pour cette préférence. Passez en revue votre liste ou vos matchs.'
+                ? activeFilterCount > 0
+                  ? 'Aucun prénom ne correspond à vos filtres. Élargissez-les pour continuer.'
+                  : 'Aucun prénom ne correspond à votre préférence pour le moment.'
+                : activeFilterCount > 0
+                  ? 'Il ne reste plus aucun prénom à découvrir avec ces filtres. Élargissez-les, ou passez en revue votre liste ou vos matchs.'
+                  : 'Il ne reste plus aucun prénom à découvrir pour cette préférence. Passez en revue votre liste ou vos matchs.'
             }
             action={
               <div className="flex flex-col gap-2 sm:flex-row">
-                <LinkButton to="/liste" variant="primary">
+                {activeFilterCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setSheet('filters')}
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-rose-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                  >
+                    Modifier les filtres
+                  </button>
+                ) : null}
+                <LinkButton to="/liste" variant={activeFilterCount > 0 ? 'secondary' : 'primary'}>
                   Voir la liste
                 </LinkButton>
                 <LinkButton to="/matchs" variant="secondary">
@@ -264,6 +350,14 @@ export function SwipePage() {
           />
         </div>
       )}
+
+      <SwipeFilterSheet
+        open={sheet === 'filters'}
+        filters={filters}
+        resultCount={queue.length}
+        onChange={changeFilters}
+        onClose={closeSheet}
+      />
     </section>
   );
 }

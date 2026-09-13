@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { GenderBadge, NameMeaning, NameStats, TrendBadge } from '../../components/NameBadges';
 import { Badge } from '../../components/ui/Badge';
 import type { NameEntry } from '../../data/types';
+import { describeSpellings } from '../../data/variants';
 import type { VoteValue } from '../../storage';
 import { useSwipeGesture, type SwipeDirection } from './useSwipeGesture';
 
@@ -15,6 +16,10 @@ export interface CardFaceProps {
   likedByPartner?: string | null;
   /** Overlay label to preview the decision while dragging. */
   overlay?: { direction: SwipeDirection; opacity: number } | null;
+  /** Other spellings of the name, most popular first. */
+  spellings?: NameEntry[];
+  /** Opens the list of spellings; without it the spellings are only mentioned. */
+  onShowSpellings?: () => void;
   style?: CSSProperties;
   className?: string;
 }
@@ -24,9 +29,12 @@ export function CardFace({
   entry,
   likedByPartner = null,
   overlay = null,
+  spellings = [],
+  onShowSpellings,
   style,
   className = '',
 }: CardFaceProps) {
+  const spellingsText = spellings.length > 0 ? `Aussi écrit ${describeSpellings(spellings)}` : null;
   return (
     <div
       style={style}
@@ -57,6 +65,23 @@ export function CardFace({
           {entry.name}
         </h2>
         <NameMeaning entry={entry} className="max-w-prose text-base sm:text-lg" />
+        {spellingsText && onShowSpellings ? (
+          <button
+            type="button"
+            onClick={onShowSpellings}
+            aria-label={`${spellingsText}. Voir les autres orthographes`}
+            className="max-w-full rounded-full bg-stone-100 px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+          >
+            <span aria-hidden="true">✍️ </span>
+            {spellingsText}
+            <span aria-hidden="true"> ›</span>
+          </button>
+        ) : spellingsText ? (
+          <p className="max-w-full rounded-full bg-stone-100 px-3 py-1.5 text-sm text-stone-600">
+            <span aria-hidden="true">✍️ </span>
+            {spellingsText}
+          </p>
+        ) : null}
         {likedByPartner ? (
           <p className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-700 ring-1 ring-rose-200">
             <span aria-hidden="true">❤️</span>
@@ -73,12 +98,21 @@ export function CardFace({
 export interface SwipeCardProps {
   entry: NameEntry;
   likedByPartner?: string | null;
+  spellings?: NameEntry[];
+  onShowSpellings?: () => void;
   reducedMotion: boolean;
   onDecide: (value: VoteValue, fromDx: number) => void;
 }
 
 /** The card on top of the stack: draggable horizontally, announces the decision preview. */
-export function SwipeCard({ entry, likedByPartner, reducedMotion, onDecide }: SwipeCardProps) {
+export function SwipeCard({
+  entry,
+  likedByPartner,
+  spellings,
+  onShowSpellings,
+  reducedMotion,
+  onDecide,
+}: SwipeCardProps) {
   const gesture = useSwipeGesture({
     threshold: SWIPE_THRESHOLD,
     reducedMotion,
@@ -97,6 +131,8 @@ export function SwipeCard({ entry, likedByPartner, reducedMotion, onDecide }: Sw
       <CardFace
         entry={entry}
         likedByPartner={likedByPartner}
+        spellings={spellings}
+        onShowSpellings={onShowSpellings}
         style={gesture.style}
         overlay={
           previewDirection ? { direction: previewDirection, opacity: gesture.progress } : null
@@ -109,12 +145,13 @@ export function SwipeCard({ entry, likedByPartner, reducedMotion, onDecide }: Sw
 
 export interface GhostCardProps {
   entry: NameEntry;
+  spellings?: NameEntry[];
   direction: SwipeDirection;
   fromDx: number;
 }
 
 /** Non-interactive copy of a decided card flying off the screen. */
-export function GhostCard({ entry, direction, fromDx }: GhostCardProps) {
+export function GhostCard({ entry, spellings, direction, fromDx }: GhostCardProps) {
   const [flying, setFlying] = useState(false);
   useEffect(() => {
     const frame = requestAnimationFrame(() => setFlying(true));
@@ -127,6 +164,7 @@ export function GhostCard({ entry, direction, fromDx }: GhostCardProps) {
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex flex-col">
       <CardFace
         entry={entry}
+        spellings={spellings}
         overlay={{ direction, opacity: 1 }}
         style={{
           transform: `translateX(${x}px) rotate(${x * 0.05}deg)`,
