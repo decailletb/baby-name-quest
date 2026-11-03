@@ -45,20 +45,37 @@ communs, synchronisés entre deux appareils via un simple code de couple.
 | 15 | Liste : croix « Passer » à côté du cœur sur chaque ligne | [x] fait | — |
 | 16 | Découvrir : une carte par famille d'orthographes (clé phonétique), autres orthographes consultables et aimables | [x] fait | — |
 | 17 | Découvrir : filtres première lettre + popularité (les « rares » masqués par défaut), mémorisés | [x] fait | — |
+| 18 | Familles d'orthographes affinées (é final, « dj », finales muettes, prénoms mixtes) | [x] fait | b0f0d5f |
+| 19 | Base injoignable : message clair + « Réessayer » ; workflow de maintien Supabase (lun./jeu.) | [x] fait | 6468dad, 6c754b3 |
 
 ## PROCHAINE ACTION
-Une fois la PR de la branche de travail courante fusionnée dans `main`, vérifier que le
-run CI sur `main` passe `check:repo` (le run 24 échouait sur un mot interdit dans ce fichier, d'où
-l'absence en ligne du tri alphabétique) et que le site déployé montre les puces « Alphabétique » et
-« Filtres » sur Découvrir. Puis tester la synchronisation avec deux navigateurs et le même code de
-couple, et consigner le résultat ici.
+1. Benjamin : réactiver le projet Supabase (tableau de bord Supabase > projet > « Restore project »),
+   puis fusionner la PR de la branche de travail.
+2. Après la fusion : lancer à la main le workflow « Maintien de la base » (onglet Actions) et vérifier
+   qu'il est vert ; vérifier sur le site que la connexion avec un code de couple aboutit.
+3. Tester la synchronisation avec deux navigateurs et le même code de couple ; consigner le résultat ici.
 
 ## BLOQUÉ / EN ATTENTE DE BENJAMIN
+- **Base Supabase en pause** (constaté le 2026-11-03) : le nom d'hôte du projet ne résout plus
+  (NXDOMAIN), le site en ligne ne peut plus charger un couple. Seul le propriétaire peut la réactiver
+  depuis le tableau de bord Supabase (un projet gratuit en pause depuis plus de 90 jours ne peut plus
+  être restauré : agir rapidement).
 - Fusionner la PR de la branche de travail : le déploiement Pages n'est autorisé que depuis `main`
   (règle de protection de l'environnement `github-pages`), et les secrets Supabase (créés après la
   fusion précédente) ne seront intégrés qu'au prochain build sur `main`.
 
 ## Journal
+- 2026-11-03 — Vérifications : run CI 26 sur `main` vert et déployé ; le site en ligne
+  (https://decailletb.github.io/baby-name-quest/) contient bien le tri « Alphabétique », les filtres et les
+  familles d'orthographes. Base Supabase injoignable (projet en pause, DNS NXDOMAIN) : le site restait sur
+  « Chargement… » puis affichait « TypeError: Failed to fetch ». Corrigé : message en français et écran
+  « Connexion impossible » avec « Réessayer » ; workflow `keepalive.yml` (lecture REST lundi et jeudi,
+  échec visible si la base est injoignable). Familles : « é » final entendu (Anaé ≠ Anna, Noé ≠ Noh,
+  Tomé ≠ Tom), « dj » = « j » (Djibril / Jibril), finales muettes (Margaux / Margot), « ée » = « é »
+  (Timothée / Timothé), un prénom mixte rejoint la famille garçon ou fille de même son et d'orthographe
+  proche (Sasha avec Sacha, Alix avec Alixe ; Camille reste distinct de Kamil) ; familles calculées sur les
+  genres recherchés → 12 016 familles. Tri alphabétique revérifié dans Chromium (viewport iPhone, choix
+  mémorisé, aucune erreur console) ; `npm run verify` vert (114 tests).
 - 2026-09-13 — Cause de l'absence du tri alphabétique en ligne : le run CI 24 sur `main` échouait à
   `check:repo` (mot interdit dans PROGRESS.md), donc pas de déploiement Pages ; note reformulée.
   Découvrir : regroupement des orthographes (`src/data/variants.ts`, clé phonétique française : accents,
