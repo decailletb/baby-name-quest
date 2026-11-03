@@ -110,3 +110,7 @@ communs, synchronisés entre deux appareils via un simple code de couple.
 - 2026-09-04 — Secrets Supabase créés par Benjamin (vérifiés présents dans le build, run 18). Le
   déploiement depuis la branche de travail est refusé par la protection d'environnement ; workflow
   ajusté pour ne déployer que depuis `main`.
+- 2026-09-04 — PR #3 fusionnée ; site en ligne reconstruit avec Supabase (bundle vérifié). Test de
+  bout en bout contre le projet Supabase avec la clé anon publique : création couple/profil/vote,
+  lecture, isolation RLS entre codes (0 ligne, écriture refusée), nettoyage. Non testé d'ici : le
+  canal temps réel entre deux navigateurs (repli : rechargement au retour sur l'onglet).
