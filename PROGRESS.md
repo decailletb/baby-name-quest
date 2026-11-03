@@ -47,24 +47,26 @@ communs, synchronisés entre deux appareils via un simple code de couple.
 | 17 | Découvrir : filtres première lettre + popularité (les « rares » masqués par défaut), mémorisés | [x] fait | — |
 | 18 | Familles d'orthographes affinées (é final, « dj », finales muettes, prénoms mixtes) | [x] fait | b0f0d5f |
 | 19 | Base injoignable : message clair + « Réessayer » ; workflow de maintien Supabase (lun./jeu.) | [x] fait | 6468dad, 6c754b3 |
+| 20 | PR #6 fusionnée, run 29 déployé ; Supabase restauré ; synchronisation à deux validée en ligne | [x] fait | 0426027 |
 
 ## PROCHAINE ACTION
-1. Benjamin : réactiver le projet Supabase (tableau de bord Supabase > projet > « Restore project »),
-   puis fusionner la PR de la branche de travail.
-2. Après la fusion : lancer à la main le workflow « Maintien de la base » (onglet Actions) et vérifier
-   qu'il est vert ; vérifier sur le site que la connexion avec un code de couple aboutit.
-3. Tester la synchronisation avec deux navigateurs et le même code de couple ; consigner le résultat ici.
+Rien d'obligatoire. Surveiller le premier run planifié de « Maintien de la base » (lundi ou jeudi,
+06:17 UTC) dans l'onglet Actions ; s'il échoue, la base est de nouveau en pause. Prochain incrément
+éventuel selon les retours d'usage à deux téléphones.
 
 ## BLOQUÉ / EN ATTENTE DE BENJAMIN
-- **Base Supabase en pause** (constaté le 2026-11-03) : le nom d'hôte du projet ne résout plus
-  (NXDOMAIN), le site en ligne ne peut plus charger un couple. Seul le propriétaire peut la réactiver
-  depuis le tableau de bord Supabase (un projet gratuit en pause depuis plus de 90 jours ne peut plus
-  être restauré : agir rapidement).
+- Rien. (Le lancement manuel d'un workflow n'est pas autorisé depuis la session de construction :
+  à faire par Benjamin si besoin, onglet Actions.)
 - Fusionner la PR de la branche de travail : le déploiement Pages n'est autorisé que depuis `main`
   (règle de protection de l'environnement `github-pages`), et les secrets Supabase (créés après la
   fusion précédente) ne seront intégrés qu'au prochain build sur `main`.
 
 ## Journal
+- 2026-11-03 — Projet Supabase restauré par Benjamin (API d'abord en 521, puis PGRST205 quelques minutes,
+  puis 200 avec les tables intactes). PR #6 fusionnée, run 29 vert et déployé (écran « Connexion
+  impossible » présent dans le bundle). Test en ligne à deux navigateurs (viewport iPhone), même code de
+  couple : profils Alice puis Bob, chacun aime « Noah » → match visible chez les deux, et chez Alice sans
+  rechargement (temps réel OK) ; aucune erreur console. Données de test supprimées ensuite.
 - 2026-11-03 — Vérifications : run CI 26 sur `main` vert et déployé ; le site en ligne
   (https://decailletb.github.io/baby-name-quest/) contient bien le tri « Alphabétique », les filtres et les
   familles d'orthographes. Base Supabase injoignable (projet en pause, DNS NXDOMAIN) : le site restait sur
