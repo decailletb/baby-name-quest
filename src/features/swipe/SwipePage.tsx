@@ -4,6 +4,7 @@ import { Chip } from '../../components/ui/Chip';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { useNames } from '../../data/useNames';
+import { applyPreference } from '../../data/filters';
 import type { NameEntry } from '../../data/types';
 import { groupVariants, otherSpellings } from '../../data/variants';
 import type { VoteValue } from '../../storage';
@@ -75,8 +76,13 @@ export function SwipePage() {
   }, [filters]);
 
   const preference = profile?.genderPreference ?? 'both';
-  // One card per family of spellings: the most popular spelling stands for the others.
-  const groups = useMemo(() => groupVariants(names), [names]);
+  // One card per family of spellings: the most popular spelling stands for the others. Families are
+  // built from the names the couple is looking for, so a mixed name never hides behind a spelling
+  // of the other gender.
+  const groups = useMemo(
+    () => groupVariants(applyPreference([...names], preference)),
+    [names, preference],
+  );
   const pool = useMemo(
     () => applySwipeFilters(buildPool(groups.canonical, preference), filters),
     [groups, preference, filters],

@@ -64,6 +64,23 @@ describe('variantKey', () => {
     distinctKeys(['Ryan', 'Rayan'], 'm');
   });
 
+  it('reads silent endings and « dj » like the spoken name', () => {
+    sameKey(['Margaux', 'Margot']);
+    sameKey(['Djibril', 'Jibril'], 'm');
+    sameKey(['Khadija', 'Khadidja']);
+    sameKey(['Timothée', 'Timothé'], 'm');
+    sameKey(['Eliott', 'Eliot', 'Elliot'], 'm');
+    distinctKeys(['Eliot', 'Elio'], 'm');
+  });
+
+  it('hears a final « é » as a vowel', () => {
+    distinctKeys(['Anaé', 'Anna']);
+    distinctKeys(['Tomé', 'Tom'], 'm');
+    distinctKeys(['Noé', 'Noh'], 'm');
+    sameKey(['Noé', 'Noe', 'Noë'], 'm');
+    sameKey(['Anaé', 'Hanaé', 'Anaë']);
+  });
+
   it('keeps clearly different names apart', () => {
     distinctKeys(['Sara', 'Zara']);
     distinctKeys(['Alya', 'Ayla']);
@@ -115,6 +132,27 @@ describe('groupVariants', () => {
     expect(groups.canonicalOf.get('mohamed-m')).toBe('mohamed-m');
     expect(groups.canonicalOf.get('ema-f')).toBe('emma-f');
     expect(groups.canonicalOf.get('louise-f')).toBe('louise-f');
+  });
+
+  it('puts a mixed name in the only gendered family that sounds the same', () => {
+    const mixed = groupVariants([
+      entry('Charlie', 'x', 25),
+      entry('Charly', 'm', 199),
+      entry('Camille', 'x', 56),
+      entry('Kamil', 'm', 708),
+      entry('Maël', 'm', 14),
+      entry('Maëlle', 'f', 40),
+      entry('Mael', 'x', 900),
+    ]);
+    expect(mixed.membersOf.get('charlie-x')?.map((item) => item.name)).toEqual([
+      'Charlie',
+      'Charly',
+    ]);
+    // Same sound but written too differently: « Camille » is not a spelling of « Kamil ».
+    expect(mixed.canonicalOf.get('camille-x')).toBe('camille-x');
+    expect(mixed.canonicalOf.get('kamil-m')).toBe('kamil-m');
+    // Both a boys' and a girls' family sound like « Mael »: it stays on its own.
+    expect(mixed.canonicalOf.get('mael-x')).toBe('mael-x');
   });
 
   it('gives the other spellings of a name, itself excluded', () => {

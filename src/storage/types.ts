@@ -68,3 +68,17 @@ export function createId(): string {
 export function nowIso(): string {
   return new Date().toISOString();
 }
+
+/** Shown when the synchronisation server cannot be reached at all. */
+export const UNREACHABLE_MESSAGE =
+  'Impossible de joindre le serveur de synchronisation. Vérifiez votre connexion puis réessayez ; ' +
+  'vos favoris ne sont pas perdus.';
+
+const NETWORK_FAILURE = /failed to fetch|networkerror|load failed|network request failed/i;
+
+/** User-facing French message for a storage failure (network errors are reworded). */
+export function describeStorageError(cause: unknown, fallback = 'Erreur de chargement'): string {
+  const message = cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+  if (!message) return fallback;
+  return NETWORK_FAILURE.test(message) ? UNREACHABLE_MESSAGE : message;
+}
