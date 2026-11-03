@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Chip } from '../../components/ui/Chip';
 import { GENDER_PREFERENCE_LABELS, type GenderPreference } from '../../data/types';
-import { isValidCoupleCode, normalizeCoupleCode } from '../../storage';
+import { describeStorageError, isValidCoupleCode, normalizeCoupleCode } from '../../storage';
 import { useSession } from '../../store/SessionContext';
 
 const PREFERENCES: GenderPreference[] = ['f', 'm', 'both'];
@@ -18,13 +18,44 @@ export function Onboarding() {
         <h1 className="mt-2 text-3xl font-extrabold text-rose-600">Baby Name Quest</h1>
         <p className="mt-2 text-stone-600">Des milliers de prénoms, une shortlist à deux.</p>
       </header>
-      {session.status === 'needs-code' ? <CoupleCodeStep /> : <ProfileStep />}
+      {session.status === 'needs-code' ? (
+        <CoupleCodeStep />
+      ) : session.error && !session.couple ? (
+        <UnreachableStep />
+      ) : (
+        <ProfileStep />
+      )}
       {session.error ? (
         <p role="alert" className="mt-6 rounded-xl bg-red-50 p-3 text-sm text-red-700">
           {session.error}
         </p>
       ) : null}
     </main>
+  );
+}
+
+/** The couple could not be loaded: offer to retry rather than a profile form that would fail too. */
+function UnreachableStep() {
+  const { refresh, leaveCouple } = useSession();
+  const [retrying, setRetrying] = useState(false);
+  const retry = async () => {
+    setRetrying(true);
+    try {
+      await refresh();
+    } finally {
+      setRetrying(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200">
+      <h2 className="text-lg font-bold text-stone-800">Connexion impossible</h2>
+      <Button size="lg" disabled={retrying} onClick={() => void retry()}>
+        {retrying ? 'Nouvelle tentative…' : 'Réessayer'}
+      </Button>
+      <Button variant="ghost" onClick={leaveCouple}>
+        Changer de code de couple
+      </Button>
+    </div>
   );
 }
 
@@ -113,7 +144,7 @@ function ProfileStep() {
     try {
       await createProfile(trimmed, preference);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Impossible de créer le profil.');
+      setError(describeStorageError(cause, 'Impossible de créer le profil.'));
     } finally {
       setSaving(false);
     }

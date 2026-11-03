@@ -11,6 +11,7 @@ import {
 import type { GenderPreference } from '../data/types';
 import {
   createId,
+  describeStorageError,
   getStorageAdapter,
   nowIso,
   type Couple,
@@ -122,7 +123,7 @@ export function SessionProvider({
     setLoaded(false);
     loadCouple(code)
       .catch((cause: unknown) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Erreur de chargement');
+        if (!cancelled) setError(describeStorageError(cause));
       })
       .finally(() => {
         if (!cancelled) setLoaded(true);
@@ -236,11 +237,18 @@ export function SessionProvider({
         setDevice((current) => ({ ...current, profileId: null }));
       },
       leaveCouple() {
+        setError(null);
         setDevice({ coupleCode: null, profileId: null });
       },
       async refresh() {
         const code = deviceRef.current.coupleCode;
-        if (code) await loadCouple(code);
+        if (!code) return;
+        setError(null);
+        try {
+          await loadCouple(code);
+        } catch (cause) {
+          setError(describeStorageError(cause));
+        }
       },
     }),
     [requireContext, profiles, votes, loadCouple],
