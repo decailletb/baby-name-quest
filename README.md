@@ -4,7 +4,7 @@ Un site web, en français et pensé pour le téléphone, pour parcourir des mill
 et constituer sa shortlist **à deux** : chacun aime ou passe, voit les favoris de l'autre, et
 les coups de cœur communs remontent dans « Nos matchs ».
 
-**Site déployé :** https://benjamindecaillet.github.io/baby-name-quest/
+**Site déployé :** https://decaileltb.github.io/baby-name-quest/
 
 ## Fonctionnalités
 - **Découvrir (swipe)** : un prénom à la fois, ❤️ j'aime / ✕ je passe, gestes tactiles et flèches
